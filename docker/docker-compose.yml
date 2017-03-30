@@ -1,0 +1,16 @@
+version: '2'
+services:
+  db:
+    restart: always
+    image: postgres:9.6.1
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=higginbotham
+      - POSTGRES_PASSWORD=higginbotham
+  web:
+    image: dfens/higginbotham
+    ports:
+      - 8080:8080
+    depends_on:
+      - db

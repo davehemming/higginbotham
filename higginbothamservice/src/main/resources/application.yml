@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/higginbotham
+    username: higginbotham
+    password: higginbotham
+  jpa.hibernate.ddl-auto: create-drop
+
+---
+
+spring:
+  profiles: container
+  datasource:
+    url: jdbc:postgresql://db:5432/higginbotham
+    username: higginbotham
+    password: higginbotham
+  jpa.hibernate.ddl-auto: create-drop

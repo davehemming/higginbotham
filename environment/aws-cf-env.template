@@ -1,0 +1,76 @@
+Parameters:
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+Resources:
+  EC2HigginbothamServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      AvailabilityZone: ap-southeast-2a
+      ImageId: ami-4e686b2d
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+        - !ImportValue InstanceSecurityGroup
+      Tags:
+        - Key: Name
+          Value: higginbotham-server
+      SubnetId: !ImportValue SubnetPublic
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -x
+
+          # log script output to file
+          exec > /tmp/part-001.log 2>&1
+
+          # set to noninteractive mode
+          export DEBIAN_FRONTEND=noninteractive
+
+          # update and upgrade
+          apt-get update
+          apt-get -y install language-pack-en
+          apt-get -y dist-upgrade
+          apt-get -y upgrade
+
+          # Before you install Docker for the first time
+          # on a new host machine, you need to set up
+          # the Docker repository.
+
+          # install the linux-image-extra-* packages,
+          # which allow Docker to use the aufs storage
+          # drivers
+          apt-get -y install curl \
+            linux-image-extra-$(uname -r) \
+            linux-image-extra-virtual
+
+          # install packages to allow apt to use a
+          # repository over HTTPS
+          apt-get -y install apt-transport-https \
+            ca-certificates
+
+          # add Docker’s official GPG key
+          curl -fsSL https://yum.dockerproject.org/gpg | apt-key add -
+
+          # verify that the key ID is
+          # 58118E89F3A912897C070ADBF76221572C52609D
+          # TODO: This should probably be an if statement
+          apt-key fingerprint \
+            58118E89F3A912897C070ADBF76221572C52609D
+
+          # set up the stable repository
+          add-apt-repository \
+           "deb https://apt.dockerproject.org/repo/ \
+           ubuntu-$(lsb_release -cs) \
+           main"
+
+          apt-get -y update
+
+          # install docker
+          apt-get -y install docker-engine=1.12.6-0~ubuntu-xenial
+
+          # install docker-compose
+          apt-get -y install docker-compose=1.5.2-1
+
+          usermod -aG docker ubuntu
+          shutdown -h now
