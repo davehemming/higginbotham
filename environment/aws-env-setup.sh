@@ -110,12 +110,12 @@ done
 echo "waiting for higginbotham server to come up" >&2
 echo -n "..." >&2
 
-while [[ $hgbm_instance_state != "running" ]]; do
-  read hgbm_instance_id hgbm_instance_state hgbm_public_ip <<< \
-    $(aws ec2 describe-instances \
+hgbm_instance_state=
+while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
+  hgbm_instance_state=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=$hgbm_instance_name" \
     "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
-    --output text --query "Reservations[*].Instances[*].[InstanceId, State.Name, PublicIpAddress]")
+    --output text --query "Reservations[*].Instances[*].[State.Name]")
 
   if [[ $hgbm_instance_state == "running" ]]; then
   	echo
@@ -130,30 +130,30 @@ echo "downloading and installing updates and dependencies" >&2
 echo -n "..." >&2
 
 hgbm_instance_state=
-while [[ $hgbm_instance_state == "running" ]]; do
-    read hgbm_instance_id hgbm_instance_state hgbm_public_ip <<< \
-      $(aws ec2 describe-instances \
+while [[ -z $hgbm_instance_state || $hgbm_instance_state == "running" ]]; do
+    hgbm_instance_state=$(aws ec2 describe-instances \
       --filters "Name=tag:Name,Values=$hgbm_instance_name" \
       "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
-      --output text --query "Reservations[*].Instances[*].[InstanceId, State.Name, PublicIpAddress]")
+      --output text --query "Reservations[*].Instances[*].[State.Name]")
 
-    if [[ $hgbm_instance_state == "running" ]]; then
+    if [[ $hgbm_instance_state != "running" ]]; then
+      echo
+  	    echo "finished installing updates" >&2
+    else
       echo -n "." >&2
       sleep 1
     fi
 done
 
-echo
 echo "rebooting system to apply updates." >&2
 echo -n "..." >&2
 
 hgbm_instance_state=
-while [[ $hgbm_instance_state != "stopped" ]]; do
-    read hgbm_instance_id hgbm_instance_state hgbm_public_ip <<< \
-      $(aws ec2 describe-instances \
+while [[ -z $hgbm_instance_state || $hgbm_instance_state != "stopped" ]]; do
+    hgbm_instance_state=$(aws ec2 describe-instances \
       --filters "Name=tag:Name,Values=$hgbm_instance_name" \
       "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
-      --output text --query "Reservations[*].Instances[*].[InstanceId, State.Name, PublicIpAddress]")
+      --output text --query "Reservations[*].Instances[*].[State.Name]")
 
     if [[ $hgbm_instance_state != "stopped" ]]; then
       echo -n "." >&2
@@ -165,14 +165,17 @@ echo
 echo "system has stopped, starting system." >&2
 echo -n "..." >&2
 
+hgbm_instance_id=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=$hgbm_instance_name" \
+    "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
+    --output text --query "Reservations[*].Instances[*].[InstanceId]")
 aws ec2 start-instances --instance-ids $hgbm_instance_id > /dev/null 2>&1
 hgbm_instance_state=
-while [[ $hgbm_instance_state != "running" ]]; do
-    read hgbm_instance_id hgbm_instance_state hgbm_public_ip <<< \
-      $(aws ec2 describe-instances \
+while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
+    hgbm_instance_state=$(aws ec2 describe-instances \
       --filters "Name=tag:Name,Values=$hgbm_instance_name" \
       "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
-      --output text --query "Reservations[*].Instances[*].[InstanceId, State.Name, PublicIpAddress]")
+      --output text --query "Reservations[*].Instances[*].[State.Name]")
 
     if [[ $hgbm_instance_state != "running" ]]; then
       echo -n "." >&2
@@ -180,14 +183,18 @@ while [[ $hgbm_instance_state != "running" ]]; do
     fi
 done
 
-#hgbm_server_ssh_open=1
-#while [[ $hgbm_server_ssh_open -ne 0 ]]; do
-#    hgbm_server_ssh_open=$(nc -w 1 $rs_public_ip 22 &> /dev/null; echo $?)
-#    if [[ $hgbm_server_ssh_open -eq 0 ]]; then
-#      echo
-#      echo "higginbotham server is back up after reboot"
-#    else
-#      echo -n "." >&2
-#      sleep 1
-#    fi
-#done
+rs_public_ip=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=$hgbm_instance_name" \
+    "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
+    --output text --query "Reservations[*].Instances[*].[PublicIpAddress]")
+hgbm_server_ssh_open=1
+while [[ $hgbm_server_ssh_open -ne 0 ]]; do
+    hgbm_server_ssh_open=$(nc -w 1 $rs_public_ip 22 &> /dev/null; echo $?)
+    if [[ $hgbm_server_ssh_open -eq 0 ]]; then
+      echo
+      echo "higginbotham server is back up after reboot"
+    else
+      echo -n "." >&2
+      sleep 1
+    fi
+done
