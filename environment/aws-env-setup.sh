@@ -6,6 +6,8 @@ declare -r aws_cf_env_template="`dirname $0`/aws-cf-env.template"
 declare -r aws_cf_net_stack_name="higginbotham-net-stack"
 declare -r aws_cf_env_stack_name="higginbotham-env-stack"
 declare -r hgbm_instance_name="higginbotham-server"
+declare -r hgbm_docker_compose_file="https://raw.githubusercontent.com/davehemming/higginbotham/master/docker/docker-compose.yml"
+declare -r hgbm_service_port=8080
 declare hgbm_instance_id=
 declare hgbm_instance_state=
 declare hgbm_public_ip=
@@ -183,16 +185,34 @@ while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
     fi
 done
 
-rs_public_ip=$(aws ec2 describe-instances \
+hgbm_public_dns_name=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=$hgbm_instance_name" \
     "Name=instance-state-name,Values=pending,running,shutting-down,stopping,stopped" \
-    --output text --query "Reservations[*].Instances[*].[PublicIpAddress]")
+    --output text --query "Reservations[*].Instances[*].[PublicDnsName]")
 hgbm_server_ssh_open=1
 while [[ $hgbm_server_ssh_open -ne 0 ]]; do
-    hgbm_server_ssh_open=$(nc -w 1 $rs_public_ip 22 &> /dev/null; echo $?)
+    hgbm_server_ssh_open=$(nc -w 1 $hgbm_public_dns_name 22 &> /dev/null; echo $?)
     if [[ $hgbm_server_ssh_open -eq 0 ]]; then
       echo
-      echo "higginbotham server is back up after reboot"
+      echo "higginbotham server is back up after reboot" >&2
+    else
+      echo -n "." >&2
+      sleep 1
+    fi
+done
+
+echo "Starting higginbotham service" >&2
+ssh -o "StrictHostKeyChecking no" \
+-i ~/Dev/aws/ssh-keys/aws-default.pem ubuntu@$hgbm_public_dns_name \
+"wget $hgbm_docker_compose_file &>/dev/null; nohup docker-compose up &>/dev/null &" 2>/dev/null
+
+hgbm_service_up=1
+while [[ $hgbm_service_up -ne 0 ]]; do
+    hgbm_service_up=$(curl $hgbm_public_dns_name:$hgbm_service_port &> /dev/null; echo $?)
+
+    if [[ $hgbm_service_up -eq 0 ]]; then
+      echo
+      echo "higginbotham service is up and available at: http://$hgbm_public_dns_name:$hgbm_service_port" >&2
     else
       echo -n "." >&2
       sleep 1
