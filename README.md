@@ -17,8 +17,12 @@
 4. In 'higginbothamservice/gradle.properties' set the 'projectGroup' variable to your own docker hub id
 
     `projectGroup=myDockerHubId`
+    
+5. In 'docker/docker-compose.yml' set the 'services.web.image' property to include your own docker hub id
 
-5. Rebuild web container with your local changes and push to your Docker Hub repo
+    `image: myDockerHubId/higginbotham`
+
+6. Rebuild web container with your local changes and push to your Docker Hub repo
 
     `./higginbothamservice/gradlew build buildDocker`
     
