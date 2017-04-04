@@ -46,3 +46,17 @@ task buildDocker(type: Docker, dependsOn: build) {
 		}
 	}
 }
+
+task deployToAws(type: Exec) {
+
+	if (!project.hasProperty('key')) {
+		throw new GradleException("Error: Missing AWS public key argument. " +
+				"Rerun with argument -Pkey=/your/aws/key/pair/location/aws-key-pair-name.pem")
+	}
+
+	workingDir "../environment"
+	executable "sh"
+	args "-c", "source aws-env-setup.sh -k ${project.getProperty('key')}"
+//	standardOutput = hashStdOut
+
+}

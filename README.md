@@ -41,7 +41,7 @@ Prerequisites:
 
 1. Browse to the 'environment' directory and issue the command:
 
-    `./aws-env-setup.sh -k ~/your/aws/key/pair/location/aws-key-pair-name.pem`
+    `./higginbothamservice/gradlew deployToAws -Pkey=/your/aws/key/pair/location/aws-key-pair-name.pem`
 
 The script will deploy two CloudFormation scripts.  The first script will create a VPC network
 and the second will create the EC2 Instance.  Once the EC2 instance has been created the latest

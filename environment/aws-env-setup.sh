@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
-declare aws_key_file=
-declare -r aws_cf_net_template="`dirname $0`/aws-cf-net.template"
-declare -r aws_cf_env_template="`dirname $0`/aws-cf-env.template"
+declare -r SCRIPT_DIRECTORY=$(cd `dirname $0` && pwd)
+declare -r aws_cf_net_template="$SCRIPT_DIRECTORY/aws-cf-net.template"
+declare -r aws_cf_env_template="$SCRIPT_DIRECTORY/aws-cf-env.template"
 declare -r aws_cf_net_stack_name="higginbotham-net-stack"
 declare -r aws_cf_env_stack_name="higginbotham-env-stack"
 declare -r hgbm_instance_name="higginbotham-server"
 declare -r hgbm_docker_compose_file="https://raw.githubusercontent.com/davehemming/higginbotham/master/docker/docker-compose.yml"
 declare -r hgbm_service_port=8080
+declare aws_key_file=
 declare hgbm_instance_id=
 declare hgbm_instance_state=
 declare hgbm_public_ip=
@@ -16,11 +17,11 @@ declare hgbm_instance_status=
 declare hgbm_net_stack_exists=$(aws cloudformation describe-stacks \
 --stack-name $aws_cf_net_stack_name \
 --output text \
---query 'Stacks[*].StackName' &> /dev/null; echo $?)
+--query 'Stacks[*].StackName' &> /dev/null; printf "\n%s" $?)
 declare hgbm_env_stack_exists=$(aws cloudformation describe-stacks \
 --stack-name $aws_cf_env_stack_name \
 --output text \
---query 'Stacks[*].StackName' &> /dev/null; echo $?)
+--query 'Stacks[*].StackName' &> /dev/null; printf "\n%s" $?)
 
 while getopts "k:" opt; do
   case $opt in
@@ -28,38 +29,38 @@ while getopts "k:" opt; do
       aws_key_file="${OPTARG}"
       ;;
     \?)
-      echo "invalid option: -${OPTARG}" >&2
+      printf "\n%s" "invalid option: -${OPTARG}" >&2
       exit 1
       ;;
     :)
-      echo "option -${OPTARG} requires an argument" >&2
+      printf "\n%s" "option -${OPTARG} requires an argument" >&2
       exit 1
       ;;
   esac
 done
 
 if [[ ! $aws_key_file ]]; then
-  echo "aws key file path has not been set. Use the -k option to set it." >&2
+  printf "\n%s" "aws key file path has not been set. Use the -k option to set it." >&2
   exit 1
 elif [[ ! -e $aws_key_file ]]; then
-  echo "aws key file does not exist" >&2
+  printf "\n%s" "aws key file does not exist" >&2
   exit 1
 fi
 
 if [[ ! -e $aws_cf_net_template ]]; then
-  echo "the aws cloud formation template file '${aws_cf_net_template}' does not exist" >&2
+  printf "\n%s" "the aws cloud formation template file '${aws_cf_net_template}' does not exist" >&2
   exit 1
 fi
 
 if [[ $hgbm_env_stack_exists -eq 0 ]]; then
-  echo "an aws cloudformation stack with the name '${aws_cf_env_stack_name}' already exists.\
+  printf "\n%s" "an aws cloudformation stack with the name '${aws_cf_env_stack_name}' already exists.\
   Please delete it before rerunning this script." >&2
   exit 1
 fi
 
 if [[ $hgbm_net_stack_exists -ne 0 ]]; then
-  echo "creating an aws cloudformation stack with the name '${aws_cf_net_stack_name}'" >&2
-  echo -n "..." >&2
+  printf "\n%s" "creating an aws cloudformation stack with the name '${aws_cf_net_stack_name}'" >&2
+  printf "\n%s" "..." >&2
 
   aws cloudformation create-stack \
   --stack-name $aws_cf_net_stack_name \
@@ -74,17 +75,16 @@ if [[ $hgbm_net_stack_exists -ne 0 ]]; then
     --query 'Stacks[*].StackStatus')
 
     if [[ $aws_cf_env_stack_creation_status == "CREATE_COMPLETE" ]]; then
-      echo
-  	  echo "aws cloudformation environment stack with the name '${aws_cf_net_stack_name}' has been created" >&2
+      printf "\n%s" "aws cloudformation environment stack with the name '${aws_cf_net_stack_name}' has been created" >&2
     else
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
   done
 fi
 
-echo "creating an aws cloudformation stack with the name '${aws_cf_env_stack_name}'" >&2
-echo -n "..." >&2
+printf "\n%s" "creating an aws cloudformation stack with the name '${aws_cf_env_stack_name}'" >&2
+printf "\n%s" "..." >&2
 
 declare -r aws_key_file_name=$(basename $aws_key_file ".pem")
 aws cloudformation create-stack \
@@ -101,16 +101,15 @@ while [[ $aws_cf_env_stack_creation_status != "CREATE_COMPLETE" ]]; do
   --query 'Stacks[*].StackStatus')
 
   if [[ $aws_cf_env_stack_creation_status == "CREATE_COMPLETE" ]]; then
-    echo
-    echo "aws cloudformation stack with the name '${aws_cf_env_stack_name}' has been created" >&2
+    printf "\n%s" "aws cloudformation stack with the name '${aws_cf_env_stack_name}' has been created" >&2
   else
-    echo -n "." >&2
+    printf "." >&2
     sleep 1
   fi
 done
 
-echo "waiting for higginbotham server to come up" >&2
-echo -n "..." >&2
+printf "\n%s" "waiting for higginbotham server to come up" >&2
+printf "\n%s" "..." >&2
 
 hgbm_instance_state=
 while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
@@ -120,16 +119,15 @@ while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
     --output text --query "Reservations[*].Instances[*].[State.Name]")
 
   if [[ $hgbm_instance_state == "running" ]]; then
-  	echo
-  	echo "higginbotham server is up" >&2
+  	printf "\n%s" "higginbotham server is up" >&2
   else
-  	echo -n "." >&2
+  	printf "." >&2
   	sleep 1
   fi
 done
 
-echo "downloading and installing updates and dependencies" >&2
-echo -n "..." >&2
+printf "\n%s" "downloading and installing updates and dependencies" >&2
+printf "\n%s" "..." >&2
 
 hgbm_instance_state=
 while [[ -z $hgbm_instance_state || $hgbm_instance_state == "running" ]]; do
@@ -139,16 +137,15 @@ while [[ -z $hgbm_instance_state || $hgbm_instance_state == "running" ]]; do
       --output text --query "Reservations[*].Instances[*].[State.Name]")
 
     if [[ $hgbm_instance_state != "running" ]]; then
-      echo
-  	    echo "finished installing updates" >&2
+      printf "\n%s" "finished installing updates" >&2
     else
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
 done
 
-echo "rebooting system to apply updates." >&2
-echo -n "..." >&2
+printf "\n%s" "rebooting system to apply updates." >&2
+printf "\n%s" "..." >&2
 
 hgbm_instance_state=
 while [[ -z $hgbm_instance_state || $hgbm_instance_state != "stopped" ]]; do
@@ -158,14 +155,13 @@ while [[ -z $hgbm_instance_state || $hgbm_instance_state != "stopped" ]]; do
       --output text --query "Reservations[*].Instances[*].[State.Name]")
 
     if [[ $hgbm_instance_state != "stopped" ]]; then
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
 done
 
-echo
-echo "system has stopped, starting system." >&2
-echo -n "..." >&2
+printf "\n%s" "system has stopped, starting system." >&2
+printf "\n%s" "..." >&2
 
 hgbm_instance_id=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=$hgbm_instance_name" \
@@ -180,7 +176,7 @@ while [[ -z $hgbm_instance_state || $hgbm_instance_state != "running" ]]; do
       --output text --query "Reservations[*].Instances[*].[State.Name]")
 
     if [[ $hgbm_instance_state != "running" ]]; then
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
 done
@@ -191,30 +187,32 @@ hgbm_public_dns_name=$(aws ec2 describe-instances \
     --output text --query "Reservations[*].Instances[*].[PublicDnsName]")
 hgbm_server_ssh_open=1
 while [[ $hgbm_server_ssh_open -ne 0 ]]; do
-    hgbm_server_ssh_open=$(nc -w 1 $hgbm_public_dns_name 22 &> /dev/null; echo $?)
+    hgbm_server_ssh_open=$(nc -w 1 $hgbm_public_dns_name 22 &> /dev/null; printf "\n%s" $?)
     if [[ $hgbm_server_ssh_open -eq 0 ]]; then
-      echo
-      echo "higginbotham server is back up after reboot" >&2
+      printf "\n%s" "higginbotham server is back up after reboot" >&2
     else
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
 done
 
-echo "Starting higginbotham service" >&2
+printf "\n%s" "Starting higginbotham service" >&2
+printf "\n%s" "..." >&2
+
 ssh -o "StrictHostKeyChecking no" \
 -i ~/Dev/aws/ssh-keys/aws-default.pem ubuntu@$hgbm_public_dns_name \
 "wget $hgbm_docker_compose_file &>/dev/null; nohup docker-compose up &>/dev/null &" 2>/dev/null
 
 hgbm_service_up=1
 while [[ $hgbm_service_up -ne 0 ]]; do
-    hgbm_service_up=$(curl $hgbm_public_dns_name:$hgbm_service_port &> /dev/null; echo $?)
+    hgbm_service_up=$(curl $hgbm_public_dns_name:$hgbm_service_port &> /dev/null; printf "\n%s" $?)
 
     if [[ $hgbm_service_up -eq 0 ]]; then
-      echo
-      echo "higginbotham service is up and available at: http://$hgbm_public_dns_name:$hgbm_service_port" >&2
+      printf "\n%s" "higginbotham service is up and available at: http://$hgbm_public_dns_name:$hgbm_service_port" >&2
     else
-      echo -n "." >&2
+      printf "." >&2
       sleep 1
     fi
 done
+
+exit 0
