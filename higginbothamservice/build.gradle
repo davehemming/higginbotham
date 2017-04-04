@@ -57,6 +57,5 @@ task deployToAws(type: Exec) {
 	workingDir "../environment"
 	executable "sh"
 	args "-c", "source aws-env-setup.sh -k ${project.getProperty('key')}"
-//	standardOutput = hashStdOut
 
 }
